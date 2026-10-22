@@ -1,0 +1,39 @@
+name: Release (Windows)
+
+on:
+  push:
+    tags:
+    - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Compile
+      working-directory: paint
+      run: ../base/make --compile
+    - name: Package
+      shell: pwsh
+      run: |
+        if (-not (Test-Path paint/build/out/ArmorPaint.exe)) {
+          throw "ArmorPaint.exe not found in paint/build/out"
+        }
+        Compress-Archive -Path paint/build/out/* -DestinationPath ArmorPaint-windows-x64.zip
+    - name: Publish release
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      run: |
+        gh release create $env:TAG ArmorPaint-windows-x64.zip --title $env:TAG --generate-notes --repo ${{ github.repository }}
